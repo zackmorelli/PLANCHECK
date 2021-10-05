@@ -1,0 +1,72 @@
+﻿namespace PLANCHECK_SCRIPT
+{
+    partial class simpleGUI
+    {
+        /// <summary>
+        /// Required designer variable.
+        /// </summary>
+        private System.ComponentModel.IContainer components = null;
+
+        /// <summary>
+        /// Clean up any resources being used.
+        /// </summary>
+        /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && (components != null))
+            {
+                components.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
+        #region Windows Form Designer generated code
+
+        /// <summary>
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
+        /// </summary>
+        private void InitializeComponent()
+        {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(simpleGUI));
+            this.progbar = new System.Windows.Forms.ProgressBar();
+            this.textbox = new System.Windows.Forms.TextBox();
+            this.SuspendLayout();
+            // 
+            // progbar
+            // 
+            this.progbar.Location = new System.Drawing.Point(12, 195);
+            this.progbar.Name = "progbar";
+            this.progbar.Size = new System.Drawing.Size(355, 36);
+            this.progbar.TabIndex = 0;
+            // 
+            // textbox
+            // 
+            this.textbox.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.textbox.Location = new System.Drawing.Point(12, 12);
+            this.textbox.Multiline = true;
+            this.textbox.Name = "textbox";
+            this.textbox.Size = new System.Drawing.Size(368, 109);
+            this.textbox.TabIndex = 1;
+            this.textbox.Text = resources.GetString("textbox.Text");
+            // 
+            // simpleGUI
+            // 
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(393, 252);
+            this.Controls.Add(this.textbox);
+            this.Controls.Add(this.progbar);
+            this.Name = "simpleGUI";
+            this.Text = "Plan Check";
+            this.ResumeLayout(false);
+            this.PerformLayout();
+
+        }
+
+        #endregion
+
+        private System.Windows.Forms.ProgressBar progbar;
+        private System.Windows.Forms.TextBox textbox;
+    }
+}
