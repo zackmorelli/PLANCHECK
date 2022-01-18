@@ -13,18 +13,55 @@ using System.Windows.Forms;
 using g3;
 
 
-//This class library contains ALL of the plan checks used by the plan check script and standalone programs. Many of the methods are used in Tiamat as well. Each respective program that uses these deals with getting the information required by these methods in a manner appropriate to how those programs work.
-// The methods here constitute the guts and actual majority of the plan check programs. the other programs are just shells used to run in different environments.
 
 
-//PlanCheck has a top-level Execute method which is called by the various programs that use it. Execute is passed top-level variables (like VMS.Plansetup) required for analysis from the calling programs and then parses through them to create local variables of specific information (like gantry angles) that will be used by the many plan check methods that are called by Execute.
-//This organization is used so that time-intensive information gathering from plan information doesn't need to be reapeated
-// All of the PlanCheck methods ar done inside Execute, and then instead of returning information to the calling program, Execute generates a standardized PDF report of the PlanCheck results that is displayed to and can be saved by the user.
-//This will allow the same standarized PlanCheck PDF report to be used by the PlanCheck script, standalone program, and Tiamat. The standalone program will still have its own GUI of course.
 
-//Very Important. The programs which utilize PLANCHECK work in a similiar way to the collision check script such that they take all required information from Eclipse and put them into custom classes.
-//These classes are then used to pass information to PLANCHECK here, which allows the plancheck method in those programs to run on a separate thread, and allows multithreading here.
-//The custom data classes are kept in a separate class library file that is part of PLANCHECK, and were taken directly from collision check.
+/*
+ * 
+ *  PLANCHECK
+ * 
+ *  Description:
+ *  This program performs a rather extensive set of EBRT plan quailty and safety checks.
+ *  
+ *  This class library contains ALL of the plan checks used by the plan check script and Tiamat. Each respective program that uses Plancheck deals with getting the information required by these methods in a manner appropriate to how those programs work.
+    The methods here constitute the guts and actual majority of the plan check programs. the other programs are just shells used to run in different environments.
+ *  PlanCheck has a top-level Execute method which is called by the various programs that use it. Execute is passed top-level variables (like VMS.Plansetup) required for analysis from the calling programs and then parses through
+ *  them to create local variables of specific information (like gantry angles) that will be used by the many plan check methods that are called by Execute.
+    This organization is used so that time-intensive information gathering from plan information doesn't need to be reapeated
+    All of the PlanCheck methods ar done inside Execute, and then instead of returning information to the calling program, Execute generates a standardized PDF report of the PlanCheck results that is saved to the TherpayPhysics drive displayed to the user.
+    This allows the same standarized PlanCheck PDF report to be used by the PlanCheck script and Tiamat. 
+
+    Very Important. The programs which utilize PLANCHECK work in a similiar way to the collision check script such that they take all required information from Eclipse and put them into custom classes.
+    These classes are then used to pass information to PLANCHECK here, which allows the plancheck method in those programs to run on a separate thread, and allows multithreading here.
+    The custom data classes are kept in a separate class library file that is part of PLANCHECK, and were taken directly from collision check.
+
+    This program is expressely written as a plug-in script for use with Varian's Eclipse Treatment Planning System, and requires Varian's API files to run properly.
+    This program runs on .NET Framework 4.6.1. 
+
+    Copyright (C) 2022 Zackary Thomas Ricci Morelli
+    
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+    I can be contacted at: zackmorelli@gmail.com
+
+
+    Release 2.0 - 1/17/2022
+ * 
+ * 
+ * 
+ * 
+ */
 
 
 namespace PLANCHECK
@@ -36,6 +73,8 @@ namespace PLANCHECK
         {
             //MessageBox.Show("TRIG 10");
             bool PCTPNparseExists = false;
+            bool HIPPAConsentExists = false;
+            bool TreatConsentExists = false;
             bool DocCheckSelection = await MiscPlanCheckUtilities.DocCheckStart();
 
             if(DocCheckSelection == true)
@@ -56,6 +95,16 @@ namespace PLANCHECK
                         MessageBox.Show("Something went wrong while attempting to run the Docheck module." +
                         "\n\nPlease remember that you need access to Aria's SQL Server database with your MRN in order for Docheck to work." +
                         "\n\nVarian is the system administrator of the SQL Server database, so you must request access from them, not Lahey IT.");
+                    }
+
+                    if(doccheck.HIPAApresent == true)
+                    {
+                        HIPPAConsentExists = true;
+                    }
+
+                    if(doccheck.CONSENTpresent == true)
+                    {
+                        TreatConsentExists = true;
                     }
 
                     if (doccheck.PCTPNpresent == true)
@@ -102,80 +151,102 @@ namespace PLANCHECK
             //MessageBox.Show("Trig 1");
             try
             {
-                if (PCTPNparseExists == true)
+                if (DocCheckSelection == true)
                 {
-                    //MessageBox.Show("plan.parse.Bolus: " + plan.parse.Bolus + "\n\nplan.parse.Site: " + plan.parse.Site);
-                    //call all the PCTPN checks
-                    //They need to be done here and not in a separate method because they need to be added to the checklist
-
-                    str = DoseCheck(plan);
-                    if (str.StartsWith("Prescribed"))
+                    if(HIPPAConsentExists == true)
                     {
-                        status = "PASS";
+                        checklist.Add(new PLANCHECKRESULTS { Name = "HIPPA Consent", status = "PASS", comment = str });
                     }
-                    else if (str.StartsWith("Warning"))
+                    else
                     {
-                        status = "FAIL";
-                    }
-                    checklist.Add(new PLANCHECKRESULTS { Name = "Dose Check", status = status, comment = str });
-
-                    str = FractionCheck(plan);
-                    if (str.EndsWith("fractions"))
-                    {
-                        status = "PASS";
-                    }
-                    else if (str.StartsWith("Warning"))
-                    {
-                        status = "FAIL";
-                    }
-                    checklist.Add(new PLANCHECKRESULTS { Name = "Fraction Check", status = status, comment = str });
-
-                    //This is in here not because it requires DocCheck and PCTPNparse, but because it requires the user to have database access
-                    str = PatientLinacCheck(plan);
-                    if (str == "Pass")
-                    {
-                        status = "PASS";
-                        str = "";
-                    }
-                    else if (str.StartsWith("No"))
-                    {
-                        status = "REVIEW";
-                    }
-                    else if (str.StartsWith("This"))
-                    {
-                        status = "FAIL";
-                    }
-                    checklist.Add(new PLANCHECKRESULTS { Name = "Linac Appointment", status = status, comment = str });
-
-                    str = PCTPNBolusCheck(plan);
-                    if (str.Equals("The PCTPN does not indicate a bolus for this plan, and no bolus structure is present in Eclipse.") || str.Equals("A bolus structure is present in Eclipse, and the PCTPN indicates a bolus for this plan."))
-                    {
-                        status = "PASS";
-                    }
-                    else if (str.Equals("No Bolus structure is present in Eclipse, however the MD selected \"Eval based on plan\" in the PCTPN. Please verify that no bolus is needed."))
-                    {
-                        status = "REVIEW";
-                    }
-                    else if (str.Equals("The PCTPN indicates a bolus for this plan, however no bolus structure is present in Eclipse!") || str.Equals("A bolus structure is present in Eclipse, however the PCTPN has no indication of a bolus (not even \"Eval based on plan\")."))
-                    {
-                        status = "FAIL";
-                    }
-                    checklist.Add(new PLANCHECKRESULTS { Name = "PCTPN Bolus Check", status = status, comment = str });
-
-
-                    str = TreatmentPositionCheck(plan);
-                    if (str.Contains("NOT"))
-                    {
-                        status = "FAIL";
-                    }
-                    else 
-                    {
-                        status = "PASS";
+                        checklist.Add(new PLANCHECKRESULTS { Name = "HIPPA Consent", status = "REVIEW", comment = "Could not locate document" });
                     }
 
-                    checklist.Add(new PLANCHECKRESULTS { Name = "Treatment Orientation Check", status = status, comment = str });
+                    if(TreatConsentExists == true)
+                    {
+                        checklist.Add(new PLANCHECKRESULTS { Name = "Treatment Consent", status = "PASS", comment = str });
+                    }
+                    else
+                    {
+                        checklist.Add(new PLANCHECKRESULTS { Name = "Treatment Consent", status = "REVIEW", comment = "Could not locate document"});
+                    }
+
+                    if (PCTPNparseExists == true)
+                    {
+                        //MessageBox.Show("plan.parse.Bolus: " + plan.parse.Bolus + "\n\nplan.parse.Site: " + plan.parse.Site);
+                        //call all the PCTPN checks
+                        //They need to be done here and not in a separate method because they need to be added to the checklist
+
+                        str = DoseCheck(plan);
+                        if (str.StartsWith("Prescribed"))
+                        {
+                            status = "PASS";
+                        }
+                        else if (str.StartsWith("Warning"))
+                        {
+                            status = "FAIL";
+                        }
+                        checklist.Add(new PLANCHECKRESULTS { Name = "Dose Check", status = status, comment = str });
+
+                        str = FractionCheck(plan);
+                        if (str.EndsWith("fractions"))
+                        {
+                            status = "PASS";
+                        }
+                        else if (str.StartsWith("Warning"))
+                        {
+                            status = "FAIL";
+                        }
+                        checklist.Add(new PLANCHECKRESULTS { Name = "Fraction Check", status = status, comment = str });
+
+                        //This is in here not because it requires DocCheck and PCTPNparse, but because it requires the user to have database access
+                        str = PatientLinacCheck(plan);
+                        if (str == "Pass")
+                        {
+                            status = "PASS";
+                            str = "";
+                        }
+                        else if (str.StartsWith("No"))
+                        {
+                            status = "REVIEW";
+                        }
+                        else if (str.StartsWith("This"))
+                        {
+                            status = "FAIL";
+                        }
+                        checklist.Add(new PLANCHECKRESULTS { Name = "Linac Appointment", status = status, comment = str });
+
+                        str = PCTPNBolusCheck(plan);
+                        if (str.Equals("The PCTPN does not indicate a bolus for this plan, and no bolus structure is present in Eclipse.") || str.Equals("A bolus structure is present in Eclipse, and the PCTPN indicates a bolus for this plan."))
+                        {
+                            status = "PASS";
+                        }
+                        else if (str.Equals("No Bolus structure is present in Eclipse, however the MD selected \"Eval based on plan\" in the PCTPN. Please verify that no bolus is needed."))
+                        {
+                            status = "REVIEW";
+                        }
+                        else if (str.Equals("The PCTPN indicates a bolus for this plan, however no bolus structure is present in Eclipse!") || str.Equals("A bolus structure is present in Eclipse, however the PCTPN has no indication of a bolus (not even \"Eval based on plan\")."))
+                        {
+                            status = "FAIL";
+                        }
+                        checklist.Add(new PLANCHECKRESULTS { Name = "PCTPN Bolus Check", status = status, comment = str });
+
+
+                        str = TreatmentPositionCheck(plan);
+                        if (str.Contains("NOT"))
+                        {
+                            status = "FAIL";
+                        }
+                        else
+                        {
+                            status = "PASS";
+                        }
+
+                        checklist.Add(new PLANCHECKRESULTS { Name = "Treatment Orientation Check", status = status, comment = str });
+                    }
+
+
                 }
-
                // MessageBox.Show("Trig 2");
 
                 temp = ValidDoseCheck(plan);
@@ -420,10 +491,14 @@ namespace PLANCHECK
 
                 str = DoseCalcGridSize(plan);
                 //MessageBox.Show("Dose calc grid str: " + str);
-                if (str.StartsWith("Mismatch") || str.EndsWith("FAIL"))
+                if (str.EndsWith("FAIL"))
                 {
                     status = "FAIL";
                     //str = str.Substring(0, 4);
+                }
+                else if(str.StartsWith("Mismatch") || str.StartsWith("Invalid"))
+                {
+                    status = "REVIEW";
                 }
                 else if (str.EndsWith("PASS"))
                 {
@@ -446,11 +521,16 @@ namespace PLANCHECK
                 //MessageBox.Show("Trig 8");
 
                 str = MaxSlicesinTPCT(plan);
-                if (Convert.ToDouble(str) > 399)
+                if (str.StartsWith("Invalid"))
+                {
+                    status = "REVIEW";
+                }
+                else if (Convert.ToDouble(str) > 399)
                 {
                     status = "FAIL";
                     str = "The TPCT is over 399 slices long. Number of Slices: " + str;
                 }
+
                 else
                 {
                     status = "PASS";
@@ -1553,7 +1633,12 @@ namespace PLANCHECK
         public static string MaxSlicesinTPCT(PLAN plan)
         {
             string B = null;
-
+            if (plan.ImageZsize == -1)
+            {
+                B = "Invalid. Plan needs to be approved.";
+                return B;
+            }
+            //MessageBox.Show("Image Z size: " + plan.ImageZsize);
             B = Convert.ToString(plan.ImageZsize);
 
             return B;
@@ -1578,7 +1663,16 @@ namespace PLANCHECK
         public static string DoseCalcGridSize(PLAN plan)
         {
             string B = null;
+            //MessageBox.Show("Dose Grid X size: " + plan.DoseGridXSize);
+            //MessageBox.Show("Dose Grid Y size: " + plan.DoseGridYSize);
+
             // Only X and Y are used for the dose grid size, not Z
+            if(plan.DoseGridXSize == -1)
+            {
+                B = "Invalid. Plan needs to be approved.";
+                return B;
+            }
+
             if (plan.DoseGridXSize == plan.DoseGridYSize)
             {
                 B = Convert.ToString(plan.DoseGridXSize);
