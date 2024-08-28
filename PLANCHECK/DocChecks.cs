@@ -139,63 +139,43 @@ namespace PLANCHECK
                             }
                         }
                     }
-                   // else if (fn.EndsWith("pdf"))
-                    //{
-                        //System.Drawing.Image[] images;
-                        //using (PdfDocument pdf = new PdfDocument(fn))
-                        //{
-                        //    images = pdf.Pages[0].ExtractImages();
-
-                           
-                        //}
-
-
-
-                        ////we know each page only has one image, because it is a scan saved as a pdf
-                        //string tesstext = null;
-                        //System.Drawing.Image im = images[0];
-                        //int k = fn.LastIndexOf("\\");
-                        //string fname = fn.Substring(k);
-                        //im.Save(@"\\wvariafssp01ss\VA_DATA$\ProgramData\Vision\DocChecks\Image" + fname);
-
-                        //using (var engine = new TesseractEngine(@"\\wvariafssp01ss\VA_DATA$\ProgramData\Vision\PublishedScripts\tessdata", "eng", EngineMode.LstmOnly))
-                        //{
-                        //    Pix pix = Pix.LoadFromFile(@"\\wvariafssp01ss\VA_DATA$\ProgramData\Vision\DocChecks\Image" + fname);
-                        //    using (var page = engine.Process(pix))
-                        //    {
-                        //        tesstext = page.GetText();
-                        //    }
-                        //}
-
-                        //if (tesstext.Contains("MRN: " + MRN) || tesstext.Contains("LCN#: " + MRN))
-                        //{
-                        //    if(tesstext.Contains("HIPAA - PATIENT PRIVACY ACKNOWLEDGMENT STATEMENT"))
-                        //    {
-                        //        //telephone consent document
-                        //        HIPAApresent = true;
-                        //        //using (StreamWriter Lwrite = File.AppendText(@"\\wvariafssp01ss\VA_DATA$\ProgramData\Vision\DocChecks\TESSERACT_OUTPUT_HIPAA_" + pdfmod + ".txt"))
-                        //        //{
-                        //        //    Lwrite.Write(tesstext);
-                        //        //}
-                        //    }
-                        //    else if(tesstext.Contains("CONSENT TO RADIOTHERAPY"))
-                        //    {
-                        //        //consent to treat document
-                        //        CONSENTpresent = true;
-                        //        //using (StreamWriter Lwrite = File.AppendText(@"\\wvariafssp01ss\VA_DATA$\ProgramData\Vision\DocChecks\TESSERACT_OUTPUT_CONSENT_" + pdfmod + ".txt"))
-                        //        //{
-                        //        //    Lwrite.Write(tesstext);
-                        //        //}
-                        //    }
-                        //}
-                    //}
+ 
                 }
                 count++;
             }
             catch (Exception e)
             {
-                MessageBox.Show("Problem opening a patient document.\n\n" + e.ToString() + "\n\n" + e.StackTrace);
+                MessageBox.Show("Problem with the PCTPN section of DocCheck.\n\n" + e.ToString() + "\n\n" + e.StackTrace);
             }
+
+            try
+            {
+                //this part will find the HIPPA Consent and Treatment Consent documents
+                string outText = null;
+                string[] tessFiles = Directory.GetFiles(@"\\wvariafssp01ss\VA_DATA$\ProgramData\Vision\Tesseract_OCR_Files\Output_Text");
+                foreach (string ltr in tessFiles)
+                {
+                    outText = File.ReadAllText(ltr);
+                    if (outText.Contains("MRN: " + MRN) || outText.Contains("LCN#: " + MRN))
+                    {
+                        if (outText.Contains("HIPAA - PATIENT PRIVACY ACKNOWLEDGMENT STATEMENT"))
+                        {
+                            //telephone consent document
+                            HIPAApresent = true;
+                        }
+                        else if (outText.Contains("CONSENT TO RADIOTHERAPY"))
+                        {
+                            //consent to treat document
+                            CONSENTpresent = true;
+                        }
+                    }
+                }
+            }
+            catch(Exception e)
+            {
+                MessageBox.Show("Problem with the Scanned Tesseract documents section of DocCheck.\n\n" + e.ToString() + "\n\n" + e.StackTrace);
+            }
+
         }
     }
 }

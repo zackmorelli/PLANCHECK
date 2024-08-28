@@ -15,10 +15,46 @@ using PLANCHECK;
 using PLANCHECK_SCRIPT;
 
 
-// Description: This is the Top-Level program of the Eclipse Script form of the Plan Check Program. This program runs a script in Eclipse which gathers all of the required information
-//  about the currently selected plan in Eclipse and stores it in an independent, custom PLAN class. The PLANCHECKEXECUTE method of the PLANCHECK class, which is used by this script, 
-//  the standalone Plan Check program, and Tiamat, is then called on a separate thread, and has PLAN passed to it. The Script then ends, while the PLANCHECK analysis continues on a separate thread 
-//  and generates a PDF report of the results. A simple GUI, which runs a separate thread, is displayed while the plan runs.
+/*
+ * 
+ *  PLANCHECK_SCRIPT 
+ * 
+ *  Description:
+ *  This is the script that is used to run the Plancheck program as an Eclipse script. The Plancheck program is a separate project within this solution that is also within the PLANCHECK namespace.
+ *  This script gathers all of the required information about the currently selected plan in Eclipse and stores it in an independent, custom PLAN class. At the end of this script, it passes the custom PLAN object
+ *  to the PLANCHECKEXECUTE method of the Plancheck program, which it starts as a separate task on the computer. Plancheck then performs a series of plan quality and safety checks.
+
+    This program is expressely written as a plug-in script for use with Varian's Eclipse Treatment Planning System, and requires Varian's API files to run properly.
+    This program runs on .NET Framework 4.6.1. 
+
+    Copyright (C) 2022 Zackary Thomas Ricci Morelli
+    
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+    I can be contacted at: zackmorelli@gmail.com
+
+
+    Release 2.0 - 1/17/2022
+ * 
+ * 
+ * 
+ * 
+ */
+
+
+
+
 
 namespace VMS.TPS
 {
@@ -105,7 +141,7 @@ namespace VMS.TPS
 
                         //MessageBox.Show("TRIG 7");
                         //MessageBox.Show("plan id: " + plan.Id);
-                        //MessageBox.Show("TRIG 7.5");
+ 
                         string patientId = plan.Course.Patient.Id;
                         DateTime? CreationDateTime = plan.CreationDateTime;
                         string patientsex = null;
@@ -133,6 +169,7 @@ namespace VMS.TPS
                         double DoseZsize = -1;
                         double Zvoxels = -1;
                         double Zvoxelsize = -1;
+                        //MessageBox.Show("TRIG 7.2");
 
                         try
                         {
@@ -175,31 +212,42 @@ namespace VMS.TPS
                         List<Vector3d> VertexList = new List<Vector3d>();
                         Vector3d CP = new Vector3d();
                         List<int> IndexList = new List<int>();
-                        foreach (Structure STR in plan.StructureSet.Structures)
+                        try
                         {
-                            if (STR.IsEmpty == true || STR.Volume < 0.0)
+                            foreach (Structure STR in plan.StructureSet.Structures)
                             {
-                                //System.Windows.Forms.MessageBox.Show("The Couch Interior structure is not contoured!");
-                                continue;
-                            }
+                                //MessageBox.Show("Structure ID: " + STR.Id);
+                                
+                                if (STR.IsEmpty == true || STR.Volume < 0.0 || STR.DicomType == "MARKER" || STR.DicomType == "marker" || STR.DicomType == "Marker")
+                                {
+                                    //System.Windows.Forms.MessageBox.Show("The Couch Interior structure is not contoured!");
+                                    continue;
+                                }
 
-                            VertexList.Clear();
-                            IndexList.Clear();
-                            foreach (Point3D p in STR.MeshGeometry.Positions)
-                            {
-                                Vector3d vect = new Vector3d(p.X, p.Y, p.Z);
-                                VertexList.Add(vect);
-                            }
+                                VertexList.Clear();
+                                IndexList.Clear();
+                                foreach (Point3D p in STR.MeshGeometry.Positions)
+                                {
+                                    Vector3d vect = new Vector3d(p.X, p.Y, p.Z);
+                                    VertexList.Add(vect);
+                                }
 
-                            foreach (int I in STR.MeshGeometry.TriangleIndices)
-                            {
-                                IndexList.Add(I);
-                            }
+                                foreach (int I in STR.MeshGeometry.TriangleIndices)
+                                {
+                                    IndexList.Add(I);
+                                }
 
-                            CP = new Vector3d(STR.CenterPoint.x, STR.CenterPoint.y, STR.CenterPoint.z);
-                            Tuple<double, double, double> Bounds = new Tuple<double, double, double>(STR.MeshGeometry.Bounds.SizeX, STR.MeshGeometry.Bounds.SizeY, STR.MeshGeometry.Bounds.SizeZ);
-                            StructureSet.Add(new STRUCTURE(VertexList, IndexList, CP, STR.Id, STR.DicomType, Bounds));
+                                CP = new Vector3d(STR.CenterPoint.x, STR.CenterPoint.y, STR.CenterPoint.z);
+                                Tuple<double, double, double> Bounds = new Tuple<double, double, double>(STR.MeshGeometry.Bounds.SizeX, STR.MeshGeometry.Bounds.SizeY, STR.MeshGeometry.Bounds.SizeZ);
+                                StructureSet.Add(new STRUCTURE(VertexList, IndexList, CP, STR.Id, STR.DicomType, Bounds));
+                            }
                         }
+                        catch(Exception e)
+                        {
+                            MessageBox.Show("Issue in plancheck script structure builder loop (pulling meshgeometry info and putting it into own classes)\n\n\n" + e.ToString() + "\n\n\n" + e.StackTrace + "\n\n\n" + e.InnerException);
+                        }
+
+                        //MessageBox.Show("TRIG 7.3");
 
                         if (StructureSet.Any(S => S.name.Equals("Body")) || StructureSet.Any(S => S.DicomType.Equals("EXTERNAL")))
                         {
@@ -232,6 +280,7 @@ namespace VMS.TPS
                         {
                             PATIENTORIENTATION = "FeetFirstProne";
                         }
+                        //MessageBox.Show("TRIG 7.4");
 
                         //These are the beam-specific variables. the beam loop starts below.
                         //Note that there is a beam-specific Technique here, while there already is a Technique string pulled from the Prescription object of the plan.
@@ -284,6 +333,8 @@ namespace VMS.TPS
                                 }
                             }
 
+                            //MessageBox.Show("TRIG 7.5");
+
                             if (beam.CalculationLogs.Any(l => l.Category.Equals("LMC")))
                             {
                                 LMClogsexist = true;
@@ -312,6 +363,7 @@ namespace VMS.TPS
                             {
                                 bolusID = bolus.Id;
                             }
+                            //MessageBox.Show("TRIG 7.6");
 
                             BeamTechnique = beam.Technique.ToString();
                             //MessageBox.Show("Beam Technique: " + Technique);
@@ -375,6 +427,7 @@ namespace VMS.TPS
                             {
                                 lmcinfo.LMClog = false;
                             }
+                            //MessageBox.Show("TRIG 7.7");
 
                             Linac = beam.TreatmentUnit.Id;
                             DoseRate = beam.DoseRate;
