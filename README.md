@@ -1,8 +1,8 @@
 # Plancheck
 
-Zackary Morelli
-1/17/2022
-zackmorelli@gmail.com
+This program is for use with ARIA/Eclipse, which is a commerical radiation treatment planning software suite made by Varian Medical Systems which is used in Radiation Oncology. This is one of several programs which I have made while working in the Radiation Oncology department at Lahey Hospital and Medical Center in Burlington, MA. I have licensed it under GPL V3 so it is open-source and publicly.
+
+There is also a .docx README file in the repo that describes what the program does and how it is organized.
 
 Plancheck is an EBRT (External Beam Radiation Therapy) plan quality and safety check program for use with ARIA/Eclipse systems. Plancheck can run on its own as an Eclipse script, but it’s modular backend allows it to be easily used by other programs as well. It also produces PDF reports of all the checks it performs.
 
